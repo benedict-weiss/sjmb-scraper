@@ -148,3 +148,79 @@ def send_email(subject: str, body: str) -> None:
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(address, password)
         server.send_message(msg)
+
+
+def commit_seen() -> None:
+    subprocess.run(["git", "config", "user.email", "github-actions@github.com"], check=True)
+    subprocess.run(["git", "config", "user.name", "github-actions"], check=True)
+    subprocess.run(["git", "add", "seen_posts.json"], check=True)
+    diff = subprocess.run(["git", "diff", "--cached", "--quiet"])
+    if diff.returncode != 0:
+        subprocess.run(
+            ["git", "commit", "-m", "chore: update seen posts [skip ci]"],
+            check=True,
+        )
+        subprocess.run(["git", "push"], check=True)
+
+
+def main() -> None:
+    cookies = load_cookies()
+
+    try:
+        html = fetch_group_page(cookies)
+    except requests.RequestException:
+        time.sleep(10)
+        html = fetch_group_page(cookies)
+
+    if is_logged_out(html):
+        send_email(
+            "SJMB Scraper: Facebook session expired",
+            "Your Facebook session cookies have expired.\n\nPlease refresh the FB_COOKIES GitHub secret:\n"
+            "1. Log into Facebook in Chrome\n"
+            "2. Export cookies with Cookie-Editor extension\n"
+            "3. Update the FB_COOKIES secret in your GitHub repository settings",
+        )
+        return
+
+    posts = parse_posts(html)
+    if not posts:
+        print("Warning: no posts parsed — HTML structure may have changed")
+        return
+
+    seen = load_seen()
+    first_run = len(seen) == 0
+    seen_set = set(seen)
+
+    new_matches: list[tuple[dict, str]] = []
+    for post in posts:
+        if post["id"] in seen_set:
+            continue
+        kw = matches_keywords(post["text"])
+        if kw:
+            new_matches.append((post, kw))
+
+    all_ids = seen + [p["id"] for p in posts if p["id"] not in seen_set]
+    save_seen(all_ids)
+    commit_seen()
+
+    if first_run:
+        print(f"First run: marked {len(posts)} posts as seen, no emails sent")
+        return
+
+    for post, kw in new_matches:
+        body = (
+            f"New post in Ticketbridge matching your keywords:\n\n"
+            f"Poster: {post['author']}\n"
+            f"Posted: {post['timestamp']}\n"
+            f"Matched keyword: {kw}\n\n"
+            f"Post text:\n\"{post['text']}\"\n\n"
+            f"View post: {post['url']}\n\n"
+            f"---\n"
+            f"Keywords active: WTS, selling, for sale, SJMB, St John's May Ball, Johns MB, johns mb"
+        )
+        send_email(f"SJMB Ticket Alert — {post['author']}", body)
+        print(f"Notified: {post['author']} ({kw})")
+
+
+if __name__ == "__main__":
+    main()

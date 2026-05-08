@@ -199,3 +199,104 @@ def test_send_email_calls_smtp(monkeypatch):
         sent_msg = mock_server.send_message.call_args[0][0]
         assert sent_msg["Subject"] == "Test Subject"
         assert sent_msg["To"] == "notify@example.com"
+
+
+from unittest.mock import patch, call
+from scraper import main
+
+MATCH_HTML = """
+<html><body>
+<div>
+  <div>
+    <strong><a href="/sarah">Sarah Jones</a></strong>
+    <div>WTS 2 SJMB tickets £180 each dm me</div>
+    <div><abbr>2 hours ago</abbr></div>
+    <div><a href="/groups/123456789/permalink/987654321/?ref=m_notif">Full Story</a></div>
+  </div>
+</div>
+</body></html>
+"""
+
+NO_MATCH_HTML = """
+<html><body>
+<div>
+  <div>
+    <strong><a href="/bob">Bob Smith</a></strong>
+    <div>WTB 1 Pembroke MB please!</div>
+    <div><abbr>1 hour ago</abbr></div>
+    <div><a href="/groups/123456789/permalink/555666777/?ref=m_notif">Full Story</a></div>
+  </div>
+</div>
+</body></html>
+"""
+
+
+def test_main_sends_email_for_match(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    # Pre-populate seen_posts.json so this isn't treated as first run
+    (tmp_path / "seen_posts.json").write_text('["000000000"]')
+    monkeypatch.setenv("FB_COOKIES", '[{"name": "c_user", "value": "1"}]')
+    monkeypatch.setenv("GMAIL_ADDRESS", "a@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    monkeypatch.setenv("NOTIFY_EMAIL", "me@example.com")
+
+    with patch("scraper.fetch_group_page", return_value=MATCH_HTML), \
+         patch("scraper.send_email") as mock_email, \
+         patch("scraper.commit_seen"):
+        main()
+
+    mock_email.assert_called_once()
+    subject, body = mock_email.call_args[0]
+    assert "Sarah Jones" in subject
+    assert "SJMB Ticket Alert" in subject
+    assert "WTS" in body or "wts" in body
+
+
+def test_main_no_email_for_no_match(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FB_COOKIES", '[{"name": "c_user", "value": "1"}]')
+    monkeypatch.setenv("GMAIL_ADDRESS", "a@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    monkeypatch.setenv("NOTIFY_EMAIL", "me@example.com")
+
+    with patch("scraper.fetch_group_page", return_value=NO_MATCH_HTML), \
+         patch("scraper.send_email") as mock_email, \
+         patch("scraper.commit_seen"):
+        main()
+
+    mock_email.assert_not_called()
+
+
+def test_main_skips_already_seen(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "seen_posts.json").write_text('["987654321"]')
+    monkeypatch.setenv("FB_COOKIES", '[{"name": "c_user", "value": "1"}]')
+    monkeypatch.setenv("GMAIL_ADDRESS", "a@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    monkeypatch.setenv("NOTIFY_EMAIL", "me@example.com")
+
+    with patch("scraper.fetch_group_page", return_value=MATCH_HTML), \
+         patch("scraper.send_email") as mock_email, \
+         patch("scraper.commit_seen"):
+        main()
+
+    mock_email.assert_not_called()
+
+
+def test_main_sends_session_expired_email(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FB_COOKIES", '[{"name": "c_user", "value": "1"}]')
+    monkeypatch.setenv("GMAIL_ADDRESS", "a@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    monkeypatch.setenv("NOTIFY_EMAIL", "me@example.com")
+
+    logged_out = "<html><body>Log In Create New Account</body></html>"
+
+    with patch("scraper.fetch_group_page", return_value=logged_out), \
+         patch("scraper.send_email") as mock_email, \
+         patch("scraper.commit_seen"):
+        main()
+
+    mock_email.assert_called_once()
+    subject = mock_email.call_args[0][0]
+    assert "expired" in subject.lower() or "session" in subject.lower()
