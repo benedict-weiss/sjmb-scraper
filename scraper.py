@@ -34,7 +34,10 @@ KEYWORDS = [
 def load_seen() -> list[str]:
     if not SEEN_POSTS_FILE.exists():
         return []
-    return json.loads(SEEN_POSTS_FILE.read_text())
+    try:
+        return json.loads(SEEN_POSTS_FILE.read_text())
+    except (json.JSONDecodeError, ValueError):
+        return []
 
 
 def save_seen(seen: list[str]) -> None:
