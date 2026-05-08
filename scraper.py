@@ -31,6 +31,17 @@ KEYWORDS = [
 ]
 
 
+def load_seen() -> list[str]:
+    if not SEEN_POSTS_FILE.exists():
+        return []
+    return json.loads(SEEN_POSTS_FILE.read_text())
+
+
+def save_seen(seen: list[str]) -> None:
+    trimmed = seen[-MAX_SEEN:]
+    SEEN_POSTS_FILE.write_text(json.dumps(trimmed, indent=2))
+
+
 def matches_keywords(text: str) -> str | None:
     """Return the first matched keyword (lowercase) or None.
 
