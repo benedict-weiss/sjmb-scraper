@@ -178,3 +178,24 @@ def test_fetch_group_page_returns_html(monkeypatch):
         mock_get.assert_called_once()
         call_kwargs = mock_get.call_args
         assert "mbasic.facebook.com" in call_kwargs[0][0]
+
+
+def test_send_email_calls_smtp(monkeypatch):
+    monkeypatch.setenv("GMAIL_ADDRESS", "sender@gmail.com")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "apppassword")
+    monkeypatch.setenv("NOTIFY_EMAIL", "notify@example.com")
+
+    with patch("scraper.smtplib.SMTP_SSL") as mock_smtp_class:
+        mock_server = MagicMock()
+        mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_server)
+        mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
+
+        from scraper import send_email
+        send_email("Test Subject", "Test body")
+
+        mock_smtp_class.assert_called_once_with("smtp.gmail.com", 465)
+        mock_server.login.assert_called_once_with("sender@gmail.com", "apppassword")
+        mock_server.send_message.assert_called_once()
+        sent_msg = mock_server.send_message.call_args[0][0]
+        assert sent_msg["Subject"] == "Test Subject"
+        assert sent_msg["To"] == "notify@example.com"

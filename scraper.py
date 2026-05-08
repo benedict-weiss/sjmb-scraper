@@ -133,3 +133,18 @@ def fetch_group_page(cookies: dict[str, str]) -> str:
     resp = requests.get(url, cookies=cookies, headers=headers, timeout=30)
     resp.raise_for_status()
     return resp.text
+
+
+def send_email(subject: str, body: str) -> None:
+    address = os.environ["GMAIL_ADDRESS"]
+    password = os.environ["GMAIL_APP_PASSWORD"]
+    notify = os.environ["NOTIFY_EMAIL"]
+
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = address
+    msg["To"] = notify
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(address, password)
+        server.send_message(msg)
