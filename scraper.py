@@ -34,12 +34,12 @@ KEYWORDS = [
 def matches_keywords(text: str) -> str | None:
     """Return the first matched keyword (lowercase) or None.
 
-    Excludes posts containing only 'wtb' (want to buy) without 'wts' (want to sell).
+    Excludes posts that mention 'wtb' unless they also contain a sell-intent keyword.
     """
     text_lower = text.lower()
 
     # Exclude posts with WTB but lacking any sell-intent keyword
-    if "wtb" in text_lower and not any(si in text_lower for si in SELL_INTENT):
+    if re.search(r'\bwtb\b', text_lower) and not any(si in text_lower for si in SELL_INTENT):
         return None
 
     for kw in KEYWORDS:

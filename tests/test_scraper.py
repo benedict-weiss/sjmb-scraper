@@ -35,6 +35,6 @@ def test_no_match_unrelated():
 
 
 def test_matches_returns_first_keyword():
-    # WTS appears before SJMB in keyword list
+    # wts is index 0 in KEYWORDS — always wins when multiple keywords match
     result = matches_keywords("WTS SJMB ticket")
-    assert result in ("wts", "sjmb")  # either is valid — just not None
+    assert result == "wts"
