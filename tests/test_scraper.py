@@ -1,9 +1,12 @@
 import json
+import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from scraper import load_seen, matches_keywords, save_seen
 from scraper import parse_posts, is_logged_out
+from scraper import load_cookies, fetch_group_page
 
 FIXTURE_HTML = """
 <html><body>
@@ -147,3 +150,31 @@ def test_save_seen_trims_to_500(tmp_path, monkeypatch):
     data = json.loads((tmp_path / "seen_posts.json").read_text())
     assert len(data) == 500
     assert data[0] == "100"  # oldest 100 trimmed
+
+
+def test_load_cookies_parses_json_list(monkeypatch):
+    raw = '[{"name": "c_user", "value": "12345"}, {"name": "xs", "value": "abc"}]'
+    monkeypatch.setenv("FB_COOKIES", raw)
+    cookies = load_cookies()
+    assert cookies == {"c_user": "12345", "xs": "abc"}
+
+
+def test_load_cookies_missing_env(monkeypatch):
+    monkeypatch.delenv("FB_COOKIES", raising=False)
+    with pytest.raises(KeyError):
+        load_cookies()
+
+
+def test_fetch_group_page_returns_html(monkeypatch):
+    raw = '[{"name": "c_user", "value": "12345"}]'
+    monkeypatch.setenv("FB_COOKIES", raw)
+    mock_resp = MagicMock()
+    mock_resp.text = "<html>group content</html>"
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("scraper.requests.get", return_value=mock_resp) as mock_get:
+        html = fetch_group_page({"c_user": "12345"})
+        assert html == "<html>group content</html>"
+        mock_get.assert_called_once()
+        call_kwargs = mock_get.call_args
+        assert "mbasic.facebook.com" in call_kwargs[0][0]

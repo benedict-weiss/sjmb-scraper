@@ -114,3 +114,22 @@ def matches_keywords(text: str) -> str | None:
         if kw in text_lower:
             return kw
     return None
+
+
+def load_cookies() -> dict[str, str]:
+    raw = os.environ["FB_COOKIES"]
+    cookies_list = json.loads(raw)
+    return {c["name"]: c["value"] for c in cookies_list}
+
+
+def fetch_group_page(cookies: dict[str, str]) -> str:
+    url = f"https://mbasic.facebook.com/groups/{GROUP_ID}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+        )
+    }
+    resp = requests.get(url, cookies=cookies, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.text
