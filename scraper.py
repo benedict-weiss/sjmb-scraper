@@ -45,6 +45,60 @@ def save_seen(seen: list[str]) -> None:
     SEEN_POSTS_FILE.write_text(json.dumps(trimmed, indent=2))
 
 
+def is_logged_out(html: str) -> bool:
+    lower = html.lower()
+    return "log in" in lower and "create new account" in lower
+
+
+def parse_posts(html: str) -> list[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    posts = []
+    seen_ids: set[str] = set()
+
+    for link in soup.find_all("a", href=re.compile(r"/permalink/\d+/")):
+        href = link["href"]
+        m = re.search(r"/permalink/(\d+)/", href)
+        if not m:
+            continue
+        post_id = m.group(1)
+        if post_id in seen_ids:
+            continue
+        seen_ids.add(post_id)
+
+        # Walk up to a container that has an <strong> author tag
+        container = link.parent
+        for _ in range(6):
+            if container is None:
+                break
+            if container.find("strong"):
+                break
+            container = container.parent
+
+        if container is None:
+            continue
+
+        author_tag = container.find("strong")
+        author = author_tag.get_text(strip=True) if author_tag else "Unknown"
+        abbr = container.find("abbr")
+        timestamp = abbr.get_text(strip=True) if abbr else ""
+        text = container.get_text(separator=" ", strip=True)
+        post_url = (
+            f"https://www.facebook.com/groups/{GROUP_ID}/permalink/{post_id}/"
+        )
+
+        posts.append(
+            {
+                "id": post_id,
+                "author": author,
+                "text": text,
+                "timestamp": timestamp,
+                "url": post_url,
+            }
+        )
+
+    return posts
+
+
 def matches_keywords(text: str) -> str | None:
     """Return the first matched keyword (lowercase) or None.
 

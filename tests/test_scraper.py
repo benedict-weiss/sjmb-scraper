@@ -3,6 +3,85 @@ from pathlib import Path
 
 import pytest
 from scraper import load_seen, matches_keywords, save_seen
+from scraper import parse_posts, is_logged_out
+
+FIXTURE_HTML = """
+<html><body>
+<div>
+  <div>
+    <strong><a href="/sarah.jones">Sarah Jones</a></strong>
+    <div>WTS 2 SJMB tickets £180 each dm me</div>
+    <div><abbr>2 hours ago</abbr></div>
+    <div><a href="/groups/123456789/permalink/987654321/?ref=m_notif">Full Story</a></div>
+  </div>
+  <div>
+    <strong><a href="/alex.laddle">Alex Laddle</a></strong>
+    <div>wtb 1 johns mb</div>
+    <div><abbr>4 hours ago</abbr></div>
+    <div><a href="/groups/123456789/permalink/111222333/?ref=m_notif">Full Story</a></div>
+  </div>
+</div>
+</body></html>
+"""
+
+LOGGED_OUT_HTML = """
+<html><body>
+<div>Log In</div>
+<div>Create New Account</div>
+</body></html>
+"""
+
+
+def test_parse_posts_returns_two_posts():
+    posts = parse_posts(FIXTURE_HTML)
+    assert len(posts) == 2
+
+
+def test_parse_posts_extracts_id():
+    posts = parse_posts(FIXTURE_HTML)
+    ids = {p["id"] for p in posts}
+    assert "987654321" in ids
+    assert "111222333" in ids
+
+
+def test_parse_posts_extracts_author():
+    posts = parse_posts(FIXTURE_HTML)
+    authors = {p["author"] for p in posts}
+    assert "Sarah Jones" in authors
+
+
+def test_parse_posts_extracts_text():
+    posts = parse_posts(FIXTURE_HTML)
+    sarah = next(p for p in posts if p["author"] == "Sarah Jones")
+    assert "WTS" in sarah["text"]
+    assert "SJMB" in sarah["text"]
+
+
+def test_parse_posts_extracts_timestamp():
+    posts = parse_posts(FIXTURE_HTML)
+    sarah = next(p for p in posts if p["author"] == "Sarah Jones")
+    assert sarah["timestamp"] == "2 hours ago"
+
+
+def test_parse_posts_builds_full_url():
+    posts = parse_posts(FIXTURE_HTML)
+    sarah = next(p for p in posts if p["author"] == "Sarah Jones")
+    assert sarah["url"].startswith("https://www.facebook.com")
+    assert "987654321" in sarah["url"]
+
+
+def test_parse_posts_no_duplicate_ids():
+    posts = parse_posts(FIXTURE_HTML)
+    ids = [p["id"] for p in posts]
+    assert len(ids) == len(set(ids))
+
+
+def test_is_logged_out_true():
+    assert is_logged_out(LOGGED_OUT_HTML) is True
+
+
+def test_is_logged_out_false():
+    assert is_logged_out(FIXTURE_HTML) is False
 
 
 def test_matches_wts():
