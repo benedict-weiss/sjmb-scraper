@@ -185,6 +185,7 @@ def main() -> None:
     posts = parse_posts(html)
     if not posts:
         print("Warning: no posts parsed — HTML structure may have changed")
+        print(f"Response URL snippet (first 2000 chars):\n{html[:2000]}")
         return
 
     seen = load_seen()
