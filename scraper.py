@@ -47,7 +47,12 @@ def save_seen(seen: list[str]) -> None:
 
 def is_logged_out(html: str) -> bool:
     lower = html.lower()
-    return "log in" in lower and "create new account" in lower
+    if "log in" in lower and "create new account" in lower:
+        return True
+    # FB redirected to JS app instead of mbasic — cookies expired/invalid
+    if '"staticcontentonly"' in lower:
+        return True
+    return False
 
 
 def parse_posts(html: str) -> list[dict]:
@@ -185,7 +190,6 @@ def main() -> None:
     posts = parse_posts(html)
     if not posts:
         print("Warning: no posts parsed — HTML structure may have changed")
-        print(f"Response URL snippet (first 2000 chars):\n{html[:2000]}")
         return
 
     seen = load_seen()
