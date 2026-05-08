@@ -10,7 +10,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-GROUP_ID = "YOUR_GROUP_ID_HERE"  # Replace: find in the URL at facebook.com/groups/...
+GROUP_ID = "257070261826425"
 SEEN_POSTS_FILE = Path("seen_posts.json")
 MAX_SEEN = 500
 
