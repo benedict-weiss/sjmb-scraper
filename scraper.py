@@ -14,6 +14,8 @@ GROUP_ID = "YOUR_GROUP_ID_HERE"  # Replace: find in the URL at facebook.com/grou
 SEEN_POSTS_FILE = Path("seen_posts.json")
 MAX_SEEN = 500
 
+SELL_INTENT = {"wts", "selling", "for sale", "ticket available"}
+
 KEYWORDS = [
     "wts",
     "st john's may ball",
@@ -36,8 +38,8 @@ def matches_keywords(text: str) -> str | None:
     """
     text_lower = text.lower()
 
-    # Check if post has WTB but no WTS
-    if "wtb" in text_lower and "wts" not in text_lower:
+    # Exclude posts with WTB but lacking any sell-intent keyword
+    if "wtb" in text_lower and not any(si in text_lower for si in SELL_INTENT):
         return None
 
     for kw in KEYWORDS:
