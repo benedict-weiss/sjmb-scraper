@@ -141,9 +141,9 @@ def fetch_group_page(cookies: dict[str, str]) -> str:
 
 
 def send_email(subject: str, body: str) -> None:
-    address = os.environ["GMAIL_ADDRESS"].strip()
-    password = os.environ["GMAIL_APP_PASSWORD"].strip()
-    notify = os.environ["NOTIFY_EMAIL"].strip()
+    address = os.environ["GMAIL_ADDRESS"].encode("ascii", "ignore").decode()
+    password = os.environ["GMAIL_APP_PASSWORD"].encode("ascii", "ignore").decode()
+    notify = os.environ["NOTIFY_EMAIL"].encode("ascii", "ignore").decode()
 
     msg = MIMEText(body)
     msg["Subject"] = subject
