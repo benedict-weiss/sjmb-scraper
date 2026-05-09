@@ -137,6 +137,7 @@ def fetch_group_page(cookies: dict[str, str]) -> str:
     }
     resp = requests.get(url, cookies=cookies, headers=headers, timeout=30)
     resp.raise_for_status()
+    print(f"Fetched URL: {resp.url} (status {resp.status_code})")
     return resp.text
 
 
