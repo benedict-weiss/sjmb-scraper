@@ -1,0 +1,10 @@
+name = "sjmb-scraper"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[[kv_namespaces]]
+binding = "SEEN_POSTS_KV"
+id = "PLACEHOLDER_REPLACE_WITH_REAL_ID"

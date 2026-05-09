@@ -7,3 +7,4 @@ venv/
 .DS_Store
 CLAUDE.md
 # docs/  # removed: specs are useful to track
+node_modules/
