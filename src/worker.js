@@ -80,12 +80,13 @@ export async function fetchGroupPage(cookiesJson) {
   const resp = await fetch(`https://mbasic.facebook.com/groups/${GROUP_ID}`, {
     headers: {
       Cookie: cookieHeader,
-      'User-Agent':
-        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-GB,en;q=0.5',
+      Referer: 'https://mbasic.facebook.com/',
     },
   });
+  console.log(`fetchGroupPage: status=${resp.status} url=${resp.url}`);
   return resp.text();
 }
 
@@ -148,7 +149,14 @@ async function run(env) {
   const posts = parsePosts(html);
   if (posts.length === 0) {
     console.warn('Warning: no posts parsed — HTML structure may have changed');
-    console.log(`HTML snippet: ${html.slice(0, 2000)}`);
+    const permalinkIdx = html.indexOf('/permalink/');
+    console.log(`HTML length: ${html.length}, permalink found at: ${permalinkIdx}`);
+    if (permalinkIdx > -1) {
+      console.log(`Permalink context: ${html.slice(Math.max(0, permalinkIdx - 200), permalinkIdx + 200)}`);
+    } else {
+      const bodyIdx = html.indexOf('<body');
+      console.log(`HTML body (no permalinks): ${html.slice(bodyIdx > -1 ? bodyIdx : 0, (bodyIdx > -1 ? bodyIdx : 0) + 3000)}`);
+    }
     return;
   }
 
