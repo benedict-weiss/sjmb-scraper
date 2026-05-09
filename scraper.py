@@ -154,10 +154,12 @@ def fetch_group_page(cookies: list[dict]) -> str:
             ),
             viewport={"width": 1280, "height": 800},
         )
-        context.add_cookies(normalized)
         page = context.new_page()
         # Remove navigator.webdriver before any script runs
         page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        # Establish domain before injecting cookies (approach B)
+        page.goto("https://www.facebook.com/", wait_until="domcontentloaded", timeout=30000)
+        context.add_cookies(normalized)
         page.goto(url, wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(8000)  # allow React to render feed content
         html = page.content()
