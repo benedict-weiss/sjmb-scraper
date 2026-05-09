@@ -200,10 +200,11 @@ def test_fetch_group_page_returns_html():
         html = fetch_group_page(cookies)
 
     assert html == "<html>group content</html>"
-    mock_page.goto.assert_called_once()
-    call_args = mock_page.goto.call_args
-    assert "facebook.com/groups/257070261826425" in call_args[0][0]
-    assert call_args[1].get("wait_until") == "domcontentloaded"
+    # goto is called twice: once to establish domain, once for the group URL
+    assert mock_page.goto.call_count == 2
+    group_call = mock_page.goto.call_args_list[1]
+    assert "facebook.com/groups/257070261826425" in group_call[0][0]
+    assert group_call[1].get("wait_until") == "domcontentloaded"
 
 
 def test_fetch_group_page_passes_cookies_to_playwright():
