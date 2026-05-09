@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 from bs4 import BeautifulSoup
 
 GROUP_ID = "257070261826425"
@@ -155,8 +156,7 @@ def fetch_group_page(cookies: list[dict]) -> str:
             viewport={"width": 1280, "height": 800},
         )
         page = context.new_page()
-        # Remove navigator.webdriver before any script runs
-        page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        stealth_sync(page)
         # Establish domain before injecting cookies (approach B)
         page.goto("https://www.facebook.com/", wait_until="domcontentloaded", timeout=30000)
         context.add_cookies(normalized)
