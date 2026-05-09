@@ -87,6 +87,13 @@ def test_is_logged_out_false():
     assert is_logged_out(FIXTURE_HTML) is False
 
 
+def test_is_logged_out_false_for_react_app():
+    # staticcontentonly appeared in mbasic redirect HTML — must NOT trigger
+    # logged-out when the full React app is served to an authenticated user
+    react_html = '<html><head></head><body data-staticcontentonly="1">feed content</body></html>'
+    assert is_logged_out(react_html) is False
+
+
 def test_matches_wts():
     assert matches_keywords("WTS 2 SJMB tickets £180 each") == "wts"
 
