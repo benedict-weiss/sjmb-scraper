@@ -3,11 +3,10 @@ import os
 import re
 import smtplib
 import subprocess
-import time
 from email.mime.text import MIMEText
 from pathlib import Path
 
-import requests
+from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 
 GROUP_ID = "257070261826425"
@@ -121,21 +120,22 @@ def matches_keywords(text: str) -> str | None:
     return None
 
 
-def load_cookies() -> dict[str, str]:
+def load_cookies() -> list[dict]:
     raw = os.environ["FB_COOKIES"]
-    cookies_list = json.loads(raw)
-    return {c["name"]: c["value"] for c in cookies_list}
+    return json.loads(raw)
 
 
-def fetch_group_page(cookies: dict[str, str]) -> str:
-    url = f"https://mbasic.facebook.com/groups/{GROUP_ID}"
-    headers = {
-        "User-Agent": "Nokia3310/1.0 (SymbianOS; Series40) NokiaBrowser/1.0",
-    }
-    resp = requests.get(url, cookies=cookies, headers=headers, timeout=30)
-    resp.raise_for_status()
-    print(f"Fetched URL: {resp.url} (status {resp.status_code})")
-    return resp.text
+def fetch_group_page(cookies: list[dict]) -> str:
+    url = f"https://www.facebook.com/groups/{GROUP_ID}"
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context()
+        context.add_cookies(cookies)
+        page = context.new_page()
+        page.goto(url, wait_until="networkidle")
+        html = page.content()
+        browser.close()
+    return html
 
 
 def send_email(subject: str, body: str) -> None:
@@ -169,11 +169,7 @@ def commit_seen() -> None:
 def main() -> None:
     cookies = load_cookies()
 
-    try:
-        html = fetch_group_page(cookies)
-    except requests.RequestException:
-        time.sleep(10)
-        html = fetch_group_page(cookies)
+    html = fetch_group_page(cookies)
 
     if is_logged_out(html):
         print(f"Logged out detected. HTML snippet: {html[:500]!r}")

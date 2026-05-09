@@ -156,7 +156,7 @@ def test_load_cookies_parses_json_list(monkeypatch):
     raw = '[{"name": "c_user", "value": "12345"}, {"name": "xs", "value": "abc"}]'
     monkeypatch.setenv("FB_COOKIES", raw)
     cookies = load_cookies()
-    assert cookies == {"c_user": "12345", "xs": "abc"}
+    assert cookies == [{"name": "c_user", "value": "12345"}, {"name": "xs", "value": "abc"}]
 
 
 def test_load_cookies_missing_env(monkeypatch):
@@ -165,19 +165,44 @@ def test_load_cookies_missing_env(monkeypatch):
         load_cookies()
 
 
-def test_fetch_group_page_returns_html(monkeypatch):
-    raw = '[{"name": "c_user", "value": "12345"}]'
-    monkeypatch.setenv("FB_COOKIES", raw)
-    mock_resp = MagicMock()
-    mock_resp.text = "<html>group content</html>"
-    mock_resp.raise_for_status = MagicMock()
+def _make_playwright_mock(html: str):
+    mock_page = MagicMock()
+    mock_page.content.return_value = html
 
-    with patch("scraper.requests.get", return_value=mock_resp) as mock_get:
-        html = fetch_group_page({"c_user": "12345"})
-        assert html == "<html>group content</html>"
-        mock_get.assert_called_once()
-        call_kwargs = mock_get.call_args
-        assert "mbasic.facebook.com" in call_kwargs[0][0]
+    mock_context = MagicMock()
+    mock_context.new_page.return_value = mock_page
+
+    mock_browser = MagicMock()
+    mock_browser.new_context.return_value = mock_context
+
+    mock_pw = MagicMock()
+    mock_pw.chromium.launch.return_value = mock_browser
+
+    mock_sync_playwright = MagicMock()
+    mock_sync_playwright.return_value.__enter__ = MagicMock(return_value=mock_pw)
+    mock_sync_playwright.return_value.__exit__ = MagicMock(return_value=False)
+
+    return mock_sync_playwright, mock_context, mock_page
+
+
+def test_fetch_group_page_returns_html():
+    mock_sync_playwright, _, _ = _make_playwright_mock("<html>group content</html>")
+    cookies = [{"name": "c_user", "value": "12345", "domain": ".facebook.com"}]
+
+    with patch("scraper.sync_playwright", mock_sync_playwright):
+        html = fetch_group_page(cookies)
+
+    assert html == "<html>group content</html>"
+
+
+def test_fetch_group_page_passes_cookies_to_playwright():
+    cookies = [{"name": "c_user", "value": "12345", "domain": ".facebook.com"}]
+    mock_sync_playwright, mock_context, _ = _make_playwright_mock("<html>ok</html>")
+
+    with patch("scraper.sync_playwright", mock_sync_playwright):
+        fetch_group_page(cookies)
+
+    mock_context.add_cookies.assert_called_once_with(cookies)
 
 
 def test_send_email_calls_smtp(monkeypatch):
