@@ -178,6 +178,7 @@ def main() -> None:
         html = fetch_group_page(cookies)
 
     if is_logged_out(html):
+        print(f"Logged out detected. HTML snippet: {html[:500]!r}")
         send_email(
             "SJMB Scraper: Facebook session expired",
             "Your Facebook session cookies have expired.\n\nPlease refresh the FB_COOKIES GitHub secret:\n"
