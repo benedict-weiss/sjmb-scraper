@@ -8,3 +8,4 @@ venv/
 CLAUDE.md
 # docs/  # removed: specs are useful to track
 node_modules/
+.dev.vars
