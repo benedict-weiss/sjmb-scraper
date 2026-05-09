@@ -75,3 +75,126 @@ export function matchesKeywords(text) {
 }
 
 export { GROUP_ID, MAX_SEEN };
+
+export async function fetchGroupPage(cookiesJson) {
+  const cookieHeader = buildCookieHeader(cookiesJson);
+  const resp = await fetch(`https://mbasic.facebook.com/groups/${GROUP_ID}`, {
+    headers: {
+      Cookie: cookieHeader,
+      'User-Agent':
+        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-GB,en;q=0.5',
+    },
+  });
+  return resp.text();
+}
+
+export async function loadSeen(kv) {
+  const val = await kv.get('seen_posts');
+  if (!val) return [];
+  try {
+    return JSON.parse(val);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveSeen(kv, seen) {
+  const trimmed = seen.slice(-MAX_SEEN);
+  await kv.put('seen_posts', JSON.stringify(trimmed));
+}
+
+export async function sendEmail(env, subject, body) {
+  const resp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'SJMB Scraper <onboarding@resend.dev>',
+      to: [env.NOTIFY_EMAIL],
+      subject,
+      text: body,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    console.error(`Email send failed: ${resp.status} ${err}`);
+  }
+}
+
+async function run(env) {
+  const html = await fetchGroupPage(env.FB_COOKIES);
+
+  if (isLoggedOut(html)) {
+    console.log(`Logged out detected. HTML snippet: ${html.slice(0, 500)}`);
+    await sendEmail(
+      env,
+      'SJMB Scraper: Facebook session expired',
+      [
+        'Your Facebook session cookies have expired.',
+        '',
+        'To refresh:',
+        '1. Log into Facebook in Chrome',
+        '2. Export cookies with Cookie-Editor extension',
+        '3. Run: wrangler secret put FB_COOKIES',
+        '4. Paste the JSON when prompted',
+      ].join('\n'),
+    );
+    return;
+  }
+
+  const posts = parsePosts(html);
+  if (posts.length === 0) {
+    console.warn('Warning: no posts parsed — HTML structure may have changed');
+    console.log(`HTML snippet: ${html.slice(0, 2000)}`);
+    return;
+  }
+
+  const seen = await loadSeen(env.SEEN_POSTS_KV);
+  const firstRun = seen.length === 0;
+  const seenSet = new Set(seen);
+
+  const newMatches = [];
+  for (const post of posts) {
+    if (seenSet.has(post.id)) continue;
+    const kw = matchesKeywords(post.text);
+    if (kw) newMatches.push({ post, kw });
+  }
+
+  const newIds = posts.filter(p => !seenSet.has(p.id)).map(p => p.id);
+  await saveSeen(env.SEEN_POSTS_KV, [...seen, ...newIds]);
+
+  if (firstRun) {
+    console.log(`First run: marked ${posts.length} posts as seen, no emails sent`);
+    return;
+  }
+
+  for (const { post, kw } of newMatches) {
+    const body = [
+      'New post in Ticketbridge matching your keywords:',
+      '',
+      `Poster: ${post.author}`,
+      `Posted: ${post.timestamp}`,
+      `Matched keyword: ${kw}`,
+      '',
+      'Post text:',
+      `"${post.text}"`,
+      '',
+      `View post: ${post.url}`,
+      '',
+      '---',
+      "Keywords active: WTS, selling, for sale, SJMB, St John's May Ball, Johns MB",
+    ].join('\n');
+    await sendEmail(env, `SJMB Ticket Alert — ${post.author}`, body);
+    console.log(`Notified: ${post.author} (${kw})`);
+  }
+}
+
+export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(run(env));
+  },
+};
