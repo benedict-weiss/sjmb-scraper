@@ -146,7 +146,8 @@ def fetch_group_page(cookies: list[dict]) -> str:
         context = browser.new_context()
         context.add_cookies(normalized)
         page = context.new_page()
-        page.goto(url, wait_until="networkidle", timeout=60000)
+        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(8000)  # allow React to render feed content
         html = page.content()
     return html
 
