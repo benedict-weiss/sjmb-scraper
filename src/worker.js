@@ -74,7 +74,6 @@ export function matchesKeywords(text) {
   return null;
 }
 
-export { GROUP_ID, MAX_SEEN };
 
 export async function fetchGroupPage(cookiesJson) {
   const cookieHeader = buildCookieHeader(cookiesJson);
