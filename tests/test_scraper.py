@@ -207,13 +207,18 @@ def test_fetch_group_page_returns_html():
 
 
 def test_fetch_group_page_passes_cookies_to_playwright():
-    cookies = [{"name": "c_user", "value": "12345", "domain": ".facebook.com"}]
+    cookies = [{"name": "c_user", "value": "12345", "domain": ".facebook.com", "path": "/", "sameSite": None}]
     mock_sync_playwright, mock_context, _ = _make_playwright_mock("<html>ok</html>")
 
     with patch("scraper.sync_playwright", mock_sync_playwright):
         fetch_group_page(cookies)
 
-    mock_context.add_cookies.assert_called_once_with(cookies)
+    # sameSite=None is dropped during normalization; only valid Playwright fields are passed
+    called_with = mock_context.add_cookies.call_args[0][0]
+    assert called_with[0]["name"] == "c_user"
+    assert called_with[0]["value"] == "12345"
+    assert called_with[0]["domain"] == ".facebook.com"
+    assert "sameSite" not in called_with[0]
 
 
 def test_send_email_calls_smtp(monkeypatch):

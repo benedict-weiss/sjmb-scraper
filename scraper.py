@@ -125,10 +125,26 @@ def load_cookies() -> list[dict]:
 
 def fetch_group_page(cookies: list[dict]) -> str:
     url = f"https://www.facebook.com/groups/{GROUP_ID}"
+    # Playwright only accepts specific fields and sameSite must be a string not null
+    _PLAYWRIGHT_SAMESITE = {"Strict", "Lax", "None"}
+    normalized = []
+    for c in cookies:
+        nc = {"name": c["name"], "value": c["value"], "domain": c["domain"], "path": c.get("path", "/")}
+        if c.get("secure") is not None:
+            nc["secure"] = c["secure"]
+        if c.get("httpOnly") is not None:
+            nc["httpOnly"] = c["httpOnly"]
+        if c.get("sameSite") in _PLAYWRIGHT_SAMESITE:
+            nc["sameSite"] = c["sameSite"]
+        expires = c.get("expirationDate") or c.get("expires")
+        if expires is not None:
+            nc["expires"] = int(expires)
+        normalized.append(nc)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
-        context.add_cookies(cookies)
+        context.add_cookies(normalized)
         page = context.new_page()
         page.goto(url, wait_until="networkidle", timeout=60000)
         html = page.content()
