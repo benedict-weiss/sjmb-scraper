@@ -122,7 +122,10 @@ def matches_keywords(text: str) -> str | None:
 
 def load_cookies() -> list[dict]:
     raw = os.environ["FB_COOKIES"]
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"FB_COOKIES is not valid JSON: {e}") from e
 
 
 def fetch_group_page(cookies: list[dict]) -> str:
@@ -132,9 +135,8 @@ def fetch_group_page(cookies: list[dict]) -> str:
         context = browser.new_context()
         context.add_cookies(cookies)
         page = context.new_page()
-        page.goto(url, wait_until="networkidle")
+        page.goto(url, wait_until="networkidle", timeout=60000)
         html = page.content()
-        browser.close()
     return html
 
 
@@ -169,7 +171,12 @@ def commit_seen() -> None:
 def main() -> None:
     cookies = load_cookies()
 
-    html = fetch_group_page(cookies)
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+    try:
+        html = fetch_group_page(cookies)
+    except PlaywrightTimeoutError:
+        print("Page load timed out — skipping this run")
+        return
 
     if is_logged_out(html):
         print(f"Logged out detected. HTML snippet: {html[:500]!r}")

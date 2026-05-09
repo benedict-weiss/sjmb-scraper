@@ -186,13 +186,17 @@ def _make_playwright_mock(html: str):
 
 
 def test_fetch_group_page_returns_html():
-    mock_sync_playwright, _, _ = _make_playwright_mock("<html>group content</html>")
+    mock_sync_playwright, _, mock_page = _make_playwright_mock("<html>group content</html>")
     cookies = [{"name": "c_user", "value": "12345", "domain": ".facebook.com"}]
 
     with patch("scraper.sync_playwright", mock_sync_playwright):
         html = fetch_group_page(cookies)
 
     assert html == "<html>group content</html>"
+    mock_page.goto.assert_called_once()
+    call_args = mock_page.goto.call_args
+    assert "facebook.com/groups/257070261826425" in call_args[0][0]
+    assert call_args[1].get("wait_until") == "networkidle"
 
 
 def test_fetch_group_page_passes_cookies_to_playwright():
@@ -226,7 +230,6 @@ def test_send_email_calls_smtp(monkeypatch):
         assert sent_msg["To"] == "notify@example.com"
 
 
-from unittest.mock import patch, call
 from scraper import main
 
 MATCH_HTML = """
