@@ -7,4 +7,4 @@ crons = ["*/10 * * * *"]
 
 [[kv_namespaces]]
 binding = "SEEN_POSTS_KV"
-id = "PLACEHOLDER_REPLACE_WITH_REAL_ID"
+id = "9e883983a7ed49c2bedcf1737265bb9c"
