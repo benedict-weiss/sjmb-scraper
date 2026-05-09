@@ -203,7 +203,7 @@ def test_fetch_group_page_returns_html():
     mock_page.goto.assert_called_once()
     call_args = mock_page.goto.call_args
     assert "facebook.com/groups/257070261826425" in call_args[0][0]
-    assert call_args[1].get("wait_until") == "networkidle"
+    assert call_args[1].get("wait_until") == "domcontentloaded"
 
 
 def test_fetch_group_page_passes_cookies_to_playwright():
